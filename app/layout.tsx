@@ -1,3 +1,5 @@
+import './ui/global.css';
+import  {monserrat} from './ui/fonts.ts';
 export default function RootLayout({
   children,
 }: {
@@ -5,7 +7,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={`${monserrat.className} antialiased`} >
+        <div style={{border : "1px #222 solid"}}>
+        {children}
+        </div>
+        <footer className='flex justify-center items-center py-10'>
+         Este es el footer.
+        </footer>
+        </body>
     </html>
   );
 }

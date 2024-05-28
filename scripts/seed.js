@@ -7,16 +7,50 @@ const {
 } = require('../app/lib/placeholder-data.js');
 const bcrypt = require('bcrypt');
 
+async function seedRoles(client) {
+  try {
+    // Create the "roles" table if it doesn't exist
+    const createTable = await client.sql`
+      CREATE TABLE IF NOT EXISTS roles (
+        role_id SERIAL PRIMARY KEY,
+        role_name VARCHAR(50) NOT NULL UNIQUE
+      );
+    `;
+    const insertRolesQuery = `
+    INSERT INTO roles (role_name) VALUES
+    ('Admin'),
+    ('Manager'),
+    ('Employee');
+  `;
+
+  const result = await client.query(insertRolesQuery);
+  console.log('Roles seeded successfully:', result.rowCount);
+
+  return  {
+    createTable,
+    result
+  }
+  } catch (error) {
+    console.error('Error seeding roles:', error);
+    throw error;
+  }
+  
+}
 async function seedUsers(client) {
   try {
     await client.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
     // Create the "users" table if it doesn't exist
     const createTable = await client.sql`
       CREATE TABLE IF NOT EXISTS users (
-        id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
+        lastname VARCHAR(255) NOT NULL,
         email TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL
+        password TEXT NOT NULL,
+        username VARCHAR(50) NOT NULL UNIQUE,
+        role_id INT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (role_id) REFERENCES roles(role_id)
       );
     `;
 
@@ -26,13 +60,14 @@ async function seedUsers(client) {
     const insertedUsers = await Promise.all(
       users.map(async (user) => {
         const hashedPassword = await bcrypt.hash(user.password, 10);
-        return client.sql`
-        INSERT INTO users (id, name, email, password)
-        VALUES (${user.id}, ${user.name}, ${user.email}, ${hashedPassword})
-        ON CONFLICT (id) DO NOTHING;
-      `;
-      }),
+        const result = await client.query(`
+          INSERT INTO users (name, email, password, username, lastname, role_id)
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `, [user.name, user.email, hashedPassword, user.username, user.lastname, user.role_id]);
+        return result;
+      })
     );
+
 
     console.log(`Seeded ${insertedUsers.length} users`);
 
@@ -46,6 +81,74 @@ async function seedUsers(client) {
   }
 }
 
+async function seedTurnos(client) {
+  try {
+    await client.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
+
+    // Create the "invoices" table if it doesn't exist
+    const createTable = await client.sql`
+    CREATE TABLE IF NOT EXISTS turnos (
+      turno_id SERIAL PRIMARY KEY,
+      turno_name VARCHAR(50) NOT NULL,
+      start_time TIME NOT NULL,
+      end_time TIME NOT NULL,
+      turno_date DATE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+`;
+
+    console.log(`Created "turnos" table`);
+
+    // Insert data into the "invoices" table
+    const insertedTurnos = `
+      INSERT INTO turnos (turno_name, start_time, end_time, turno_date) 
+      VALUES 
+        ('Morning Shift', '08:00:00', '16:00:00', '2024-05-19'),
+        ('Evening Shift', '16:00:00', '00:00:00', '2024-05-19'),
+        ('Night Shift', '00:00:00', '08:00:00', '2024-05-20');
+    `;
+
+    const result = await client.query(insertedTurnos);
+    console.log('Turnos seeded successfully:', result.rowCount);
+
+    console.log(`Seeded turnos`);
+
+    return {
+      createTable,
+      turnos: insertedTurnos,
+    };
+  } catch (error) {
+    console.error('Error seeding turnos:', error);
+    throw error;
+  }
+}
+
+async function seedUsersTurnos(client) {
+  try {
+    await client.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
+    // Create the "users" table if it doesn't exist
+    const createTable = await client.sql`
+    CREATE TABLE IF NOT EXISTS user_turnos (
+      user_turno_id SERIAL PRIMARY KEY,
+      user_id INT NOT NULL,
+      turno_id INT NOT NULL,
+      assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      FOREIGN KEY (turno_id) REFERENCES turnos(turno_id),
+      CONSTRAINT unique_user_turno UNIQUE (user_id, turno_id) -- Prevent duplicate assignments
+  );
+    `;
+
+    console.log(`Created "users_turnos" table`);
+   
+    return {
+      createTable,
+    };
+  } catch (error) {
+    console.error('Error seeding users_turnos:', error);
+    throw error;
+  }
+}
 async function seedInvoices(client) {
   try {
     await client.sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
@@ -162,8 +265,10 @@ async function seedRevenue(client) {
 
 async function main() {
   const client = await db.connect();
-
+  await seedRoles(client);
   await seedUsers(client);
+  await seedTurnos(client);
+  await seedUsersTurnos(client);
   await seedCustomers(client);
   await seedInvoices(client);
   await seedRevenue(client);

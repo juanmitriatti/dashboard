@@ -19,7 +19,8 @@ export async function fetchRevenue() {
     // Don't do this in production :)
 
     // console.log('Fetching revenue data...');
-    // await new Promise((resolve) => setTimeout(resolve, 3000));
+  
+    //await new Promise((resolve) => setTimeout(resolve, 3000));
 
     const data = await sql<Revenue>`SELECT * FROM revenue`;
 
@@ -32,6 +33,31 @@ export async function fetchRevenue() {
   }
 }
 
+export async function insertTurno(shiftName, startTime, endTime, shiftDate) {
+  try {
+   
+    const result = await sql`INSERT INTO turnos (turno_name, start_time, end_time, turno_date) 
+    VALUES (${shiftName}, ${startTime}, ${endTime}, ${shiftDate}) returning *`;
+
+    console.log(result);
+
+    return result.rows[0];
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to insert the shift.');
+  }
+}
+/**
+ * 
+ *  // Insert data into the "invoices" table
+    const insertedTurnos = `
+      INSERT INTO turnos (turno_name, start_time, end_time, turno_date) 
+      VALUES 
+        ('Morning Shift', '08:00:00', '16:00:00', '2024-05-19'),
+        ('Evening Shift', '16:00:00', '00:00:00', '2024-05-19'),
+        ('Night Shift', '00:00:00', '08:00:00', '2024-05-20');
+    `;
+ * */
 export async function fetchLatestInvoices() {
   try {
     const data = await sql<LatestInvoiceRaw>`
@@ -52,6 +78,81 @@ export async function fetchLatestInvoices() {
   }
 }
 
+export async function fetchLatestTurnos() {
+   
+  try {
+   /* const data = sql`
+    SELECT
+    turno_id AS id,
+    turno_name AS title,
+    turno_date,
+    start_time,
+    end_time,
+    'Pre-meeting meeting, to prepare for the meeting' AS desc
+      FROM turnos
+      LIMIT 5`;
+
+    const { rows } = await sql.query(data);*/
+    const data = await sql`
+    SELECT
+    turno_id AS id,
+    turno_name AS title,
+    turno_date,
+    start_time,
+    end_time,
+    'Pre-meeting meeting, to prepare for the meeting' AS desc
+    FROM turnos`;
+
+    //start: new Date(2024, 5, 12, 10, 30, 0, 0),
+//console.log("data.rows",data.rows)
+/*    const formattedRows = data.rows.map(row => (
+      {
+        id: row.id,
+        title: row.title,
+        start: new Date(`${row.turno_date}T${row.start_time}`),
+        end: new Date(`${row.turno_date}T${row.end_time}`),
+        desc: row.desc
+      }
+    ));*/
+    const formattedRows = data.rows.map(row => {
+      
+      const turnoDate = new Date(row.turno_date);
+      const [startHour, startMinute, startSecond] = row.start_time.split(':').map(Number);
+      const [endHour, endMinute, endSecond] = row.end_time.split(':').map(Number);
+
+      const start = new Date(
+        turnoDate.getFullYear(),
+        turnoDate.getMonth(),
+        turnoDate.getDate(),
+        startHour,
+        startMinute,
+        startSecond
+      );
+
+      const end = new Date(
+        turnoDate.getFullYear(),
+        turnoDate.getMonth(),
+        turnoDate.getDate(),
+        endHour,
+        endMinute,
+        endSecond
+      );
+
+      return {
+        id: row.id,
+        title: row.title,
+        start,
+        end,
+        desc: row.desc
+      };
+    });
+
+    return formattedRows;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch the latest turnos.');
+  }
+}
 export async function fetchCardData() {
   try {
     // You can probably combine these into a single SQL query
