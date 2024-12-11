@@ -33,7 +33,7 @@ export async function fetchRevenue() {
   }
 }
 
-export async function insertTurno(shiftName, startTime, endTime, shiftDate) {
+export async function insertTurno(shiftName: string, startTime: string, endTime: string, shiftDate: string) {
   try {
    
     const result = await sql`INSERT INTO turnos (turno_name, start_time, end_time, turno_date) 

@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "noImplicitAny": false, // Disable the implicit `any` error
+
     "target": "es5",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
