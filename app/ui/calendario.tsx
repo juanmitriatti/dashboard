@@ -17,7 +17,7 @@ const Calendario = ({ events }) => {
   const [view, setView] = useState<"week" | "month" | "day" | "agenda" | "work_week">(Views.WEEK);
 
   const [date, setDate] = useState(new Date());
-  const { data: session, status } = useSession();
+  const session = useSession();
 
   const handleSelectSlot = useCallback(
     async ({ start, end }) => {
@@ -58,8 +58,8 @@ const Calendario = ({ events }) => {
   const dayLayoutAlgorithm = 'no-overlap';
 
   // Conditionally render after initializing all hooks
-  if (status === 'authenticated' && session?.user) {
-    return <p>Signed in as {session.user.email}</p>;
+  if (session?.status === 'authenticated' && session?.data?.user) {
+    return <p>Signed in as {session.data.user.email}</p>;
   }
 
   return (
